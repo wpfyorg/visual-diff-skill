@@ -38,51 +38,13 @@ Use it to **verify a migration or port, check visual parity after a refactor, QA
 
 ## Install (just ask your agent)
 
-The fastest way to install visual-diff is to **let your AI agent do it.** Paste the block below into Claude Code, Codex, Cursor, opencode, Antigravity, or Claude Desktop and the agent will place the skill in the right folder for your tool, install the dependencies, and verify it works.
-
-<details open>
-<summary><strong>📋 Copy-paste this into your agent</strong></summary>
+The fastest way to install visual-diff is to **let your AI agent do it.** Paste this one line into Claude Code, Codex, Cursor, opencode, Antigravity, or Claude Desktop:
 
 ```text
-Install the "visual-diff" agent skill from https://github.com/wpfyorg/visual-diff-skill for THIS coding tool.
-
-Do all of the following:
-
-1. Fetch the repo. Either `git clone https://github.com/wpfyorg/visual-diff-skill`
-   into a temp dir, or download the `skills/visual-diff/` folder. The complete skill
-   lives in `skills/visual-diff/` and contains: SKILL.md, package.json,
-   config.example.json, and scripts/ (visual-diff.mjs + lib/).
-
-2. Copy the ENTIRE `skills/visual-diff/` folder into this tool's skills directory,
-   keeping the folder intact. Use the correct location for whatever tool you are:
-     - Claude Code   -> ~/.claude/skills/visual-diff/   (global) or .claude/skills/visual-diff/ (project)
-     - Claude Desktop-> add it as a Skill under Settings -> Capabilities -> Skills (zip the folder if upload is required)
-     - OpenAI Codex  -> .agents/skills/visual-diff/  (project) or ~/.codex/ equivalent; also expose it as a /visual-diff prompt
-     - Antigravity   -> .agents/skills/visual-diff/
-     - Cursor        -> .cursor/commands/visual-diff.md  (or .cursor/rules/) pointing at the SKILL.md instructions
-     - opencode      -> .opencode/command/visual-diff.md  (or ~/.config/opencode/) referencing the SKILL.md
-   If you support the `npx skills add` standard, you may instead run:
-     npx skills add https://github.com/wpfyorg/visual-diff-skill --skill visual-diff
-
-3. Install the Node dependencies INSIDE the copied skill folder so the script can
-   resolve them at runtime:
-     cd <skills-dir>/visual-diff && npm install && npx playwright install chromium
-   (Dependencies: odiff-bin, playwright, pngjs. Requires Node >= 18.)
-
-4. Tell me to create a `visual-diff.config.json` in my project root by copying
-   `config.example.json`, then set `localBase`, `liveBase`, and the `pages` list.
-
-5. Verify the install: run
-     node <skills-dir>/visual-diff/scripts/visual-diff.mjs --help
-   and confirm it prints usage with no error.
-
-Then confirm the skill is registered and tell me how to trigger it (e.g. /visual-diff)
-in this tool.
+If you are an agent, read https://github.com/wpfyorg/visual-diff-skill/blob/master/LLM-INSTALL.md and install this stack.
 ```
 
-</details>
-
-If your agent gets stuck, point it at [`skills/visual-diff/SKILL.md`](skills/visual-diff/SKILL.md) — it is self-describing.
+The agent reads [`LLM-INSTALL.md`](LLM-INSTALL.md) — a step-by-step guide written for the agent — then places the skill in the right folder for your tool, installs the dependencies, and verifies it works. If it gets stuck, point it at [`skills/visual-diff/SKILL.md`](skills/visual-diff/SKILL.md), which is self-describing.
 
 ### Or install with one command (Agent Skills CLI)
 
@@ -131,6 +93,33 @@ The naive way an AI agent does this is brutal on tokens — it screenshots both 
 So we flipped it. Let a **deterministic image differ** do the matching and emit a number. The agent reads a one-line-per-page table, sees `✅ pass` / `❌ fail`, and opens an actual image **only** for the handful of pages that regressed. Same verification, a fraction of the tokens, and a hard numeric acceptance gate (default `< 0.1%` pixel difference) instead of vibes.
 
 It turned out to be useful far beyond our migration — any time you have "the same pages rendered two ways" (refactor vs. main, staging vs. prod, framework A vs. framework B, before vs. after a dependency bump), this is the skill.
+
+---
+
+## Pick your consistency target
+
+Tell your agent how close the two builds must match and let it loop. "Consistency" is just
+`100% − diff%`, which maps directly to the skill's `--threshold` gate. Paste one of these:
+
+| You want… | Threshold | Paste this to your agent |
+|---|---:|---|
+| **90% consistency** *(rough parity — early porting)* | `10` | `Run /visual-diff with --threshold 10. Fix every ❌ fail in my source, then re-run until all pages pass. Read only report.md; open a diff image only for failing rows.` |
+| **95% consistency** *(close — pre-review)* | `5` | `Run /visual-diff with --threshold 5. Iterate: for each ❌ fail, open its diff*.png, fix the source, re-run that page, repeat until every page passes at 95%.` |
+| **99% consistency** *(tight — pre-ship QA)* | `1` | `Get my live build to 99% visual parity with local. Run /visual-diff --threshold 1, fix each failing region (font, spacing, color, radius, icon size), and don't stop until all pages pass.` |
+| **99.9% — default** *(pixel-perfect)* | `0.1` | `Run /visual-diff and don't declare done until every page is under the 0.1% gate.` |
+
+**How the agent hits the target.** The skill turns "make it consistent" into a closed loop
+the agent can run unattended:
+
+1. **Set the gate** — your target becomes `--threshold (100 − target)`, so 95% → `--threshold 5`.
+2. **Measure** — the runner diffs every page and writes `report.md` with a real number per page.
+3. **Triage cheaply** — the agent reads only the table and opens a `diff*.png` **only** for `❌ fail` rows (changed pixels are magenta), so it sees exactly *where* a page drifts.
+4. **Fix the source** — it edits your code/build for each failing region. The usual culprits are named for it: font fallback, letter-spacing, line-height, an off-by-a-hex brand color, border-radius, icon size, section padding.
+5. **Re-run the failing page** — `--page <slug>` re-checks just that one, fast.
+6. **Loop until green** — repeat 3–5 until every page is under the gate. Exit code `0` is the agent's stop signal; `2` means keep going.
+
+The numeric gate is what makes this work without you in the loop: the agent has an objective
+"am I done yet?" instead of guessing from screenshots.
 
 ---
 
