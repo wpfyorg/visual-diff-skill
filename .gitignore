@@ -1,0 +1,6 @@
+node_modules/
+tmp/
+visual-diff.config.json
+visual-diff.pages.json
+*.log
+.DS_Store
