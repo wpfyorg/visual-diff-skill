@@ -1,4 +1,4 @@
-# LLM-INSTALL — visual-diff
+# LLM-INSTALL - visual-diff
 
 **If you are an AI agent, read this file and install this stack.** This document is
 written for you (the coding agent), not the human. Follow every step, then report back.
@@ -57,7 +57,7 @@ npx skills add https://github.com/wpfyorg/visual-diff-skill --skill visual-diff
 ### 3. Install the Node dependencies INSIDE the copied skill folder
 
 The runner resolves its dependencies (`odiff-bin`, `playwright`, `pngjs`) from the skill
-folder at runtime, so install them there — **not** in the user's project:
+folder at runtime, so install them there - **not** in the user's project:
 
 ```bash
 cd <skills-dir>/visual-diff
@@ -103,7 +103,7 @@ Confirm it prints usage with no error.
 
 ## How to actually use it once installed
 
-- Read [`skills/visual-diff/SKILL.md`](skills/visual-diff/SKILL.md) — it is self-describing.
+- Read [`skills/visual-diff/SKILL.md`](skills/visual-diff/SKILL.md) - it is self-describing.
 - The discipline: run the runner → read **only** `tmp/visual-diff/<run>/report.md` → open a
   `diff*.png` **only** for `❌ fail` rows → fix the source → re-run until the gate passes.
 - Exit code `0` = all pages within the gate, `2` = one or more fail/error.

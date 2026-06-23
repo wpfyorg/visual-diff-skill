@@ -1,6 +1,6 @@
 ---
 name: visual-diff
-description: Compare two renderings of the same set of pages — a "local" base against a "live" base — using odiff, and report which pages match. Use to verify a port/migration, check parity after edits, or QA before shipping, instead of eyeballing full-page screenshots. Triggered by /visual-diff.
+description: Compare two renderings of the same set of pages - a "local" base against a "live" base - using odiff, and report which pages match. Use to verify a port/migration, check parity after edits, or QA before shipping, instead of eyeballing full-page screenshots. Triggered by /visual-diff.
 trigger: /visual-diff
 user-invocable: true
 argument-hint: "[page-slug] [--mobile] [--full]"
@@ -14,7 +14,7 @@ base) and report results **without burning tokens on full-page screenshots**. Th
 batch runner writes a compact `report.md`; you read that, and open a diff image
 *only* for pages that fail.
 
-This is a portable build — nothing is hard-coded to one project. Bases and the page
+This is a portable build - nothing is hard-coded to one project. Bases and the page
 list come from config (see **Setup** below).
 
 ## Why this exists
@@ -45,7 +45,7 @@ you only look at images when something is actually off.
    }
    ```
    Alternatively keep pages in a separate `visual-diff.pages.json` (`{ "pages": [...] }`)
-   — the runner auto-discovers it.
+   - the runner auto-discovers it.
 
 ## Steps
 
@@ -70,7 +70,7 @@ you only look at images when something is actually off.
 4. **For rows marked `❌ fail` (and only those), open the listed `diff*.png`** with the
    Read tool to see the changed regions (highlighted in magenta `#ff00ff`). Do **not**
    read `local.png` / `live.png` unless the diff image alone is ambiguous. Skip
-   `✅ pass` rows entirely — they are within the gate.
+   `✅ pass` rows entirely - they are within the gate.
 
 5. **Report** the pass/fail table back to the user. For each failure, name the likely
    cause from the usual mismatch sources: font loading / fallback, letter-spacing,

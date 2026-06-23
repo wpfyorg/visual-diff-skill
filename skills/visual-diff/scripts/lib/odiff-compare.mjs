@@ -1,5 +1,5 @@
 /**
- * odiff-compare.mjs — native image diff via odiff-bin.
+ * odiff-compare.mjs - native image diff via odiff-bin.
  *
  * Wraps odiff's `compare()` into a normalized result and applies the repo's
  * Bricks-transfer acceptance gate (diff < 0.1%). odiff is far faster than the
@@ -7,7 +7,7 @@
  * numbers so the batch runner can report without reading the images.
  *
  * Size mismatch (e.g. local vs live full-page heights) is handled by padding
- * both images to a shared canvas before diffing — the padded region shows up as
+ * both images to a shared canvas before diffing - the padded region shows up as
  * difference, so a height mismatch correctly raises the diff %, instead of
  * odiff bailing out with a hard `layout-diff`.
  */

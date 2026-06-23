@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * visual-diff.mjs — batch A↔B visual comparison via odiff.
+ * visual-diff.mjs - batch A↔B visual comparison via odiff.
  *
  * Captures each page from a "local" base and a "live" base, diffs the pair with
  * odiff, and writes a compact report. The report is the only artifact you need
@@ -108,7 +108,7 @@ const ROOT = CWD;
 const runDir = join(ROOT, 'tmp', 'visual-diff', new Date().toISOString().replace(/[:.]/g, '-'));
 mkdirSync(runDir, { recursive: true });
 
-console.log(`Visual diff — ${pages.length} page(s) × ${VIEWPORTS.length} viewport(s)`);
+console.log(`Visual diff - ${pages.length} page(s) × ${VIEWPORTS.length} viewport(s)`);
 console.log(`  local: ${LOCAL_BASE}`);
 console.log(`  live:  ${LIVE_BASE}`);
 console.log(`  gate:  < ${gatePct}%`);
@@ -145,12 +145,12 @@ for (const page of pages) {
       row.status = cmp.pass ? 'pass' : 'fail';
       row.message = cmp.message;
       row.diffImage = cmp.pass ? null : relize(cmp.diffPath, ROOT);
-      console.log(`  ${row.status === 'pass' ? '✓' : '✗'} ${page.slug} [${vp.name}] — ${cmp.message}`);
+      console.log(`  ${row.status === 'pass' ? '✓' : '✗'} ${page.slug} [${vp.name}] - ${cmp.message}`);
     } catch (err) {
       row.status = 'error';
       row.message = err.message;
       row.diffPercentage = null;
-      console.log(`  ! ${page.slug} [${vp.name}] — ERROR: ${err.message}`);
+      console.log(`  ! ${page.slug} [${vp.name}] - ERROR: ${err.message}`);
     }
 
     results.push(row);
@@ -198,9 +198,9 @@ function buildMarkdown(rows) {
     `| --- | --- | ---: | --- | --- |`,
   ];
   for (const r of rows) {
-    const pct = r.diffPercentage == null ? '—' : `${r.diffPercentage.toFixed(2)}%`;
+    const pct = r.diffPercentage == null ? '-' : `${r.diffPercentage.toFixed(2)}%`;
     const badge = r.status === 'pass' ? '✅ pass' : r.status === 'fail' ? '❌ fail' : '⚠️ error';
-    const img = r.status === 'pass' ? '—' : (r.diffImage ? `\`${r.diffImage}\`` : `(${r.message})`);
+    const img = r.status === 'pass' ? '-' : (r.diffImage ? `\`${r.diffImage}\`` : `(${r.message})`);
     lines.push(`| ${r.slug} | ${r.viewport} | ${pct} | ${badge} | ${img} |`);
   }
   lines.push('');

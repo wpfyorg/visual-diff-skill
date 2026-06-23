@@ -1,5 +1,5 @@
 /**
- * capture.mjs — shared headless-Chromium screenshot capture.
+ * capture.mjs - shared headless-Chromium screenshot capture.
  *
  * Extracted from screenshot.mjs so the single-shot CLI and the batch
  * visual-diff runner share one capture implementation (same viewport,

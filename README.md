@@ -1,7 +1,7 @@
 <h1 align="center">visual-diff</h1>
 
 <p align="center">
-  <strong>Catch visual regressions with your AI agent — diff two renderings of a site, read one tiny report, open an image only when something breaks.</strong>
+  <strong>Catch visual regressions with your AI agent - diff two renderings of a site, read one tiny report, open an image only when something breaks.</strong>
 </p>
 
 <p align="center">
@@ -28,11 +28,11 @@
 
 ---
 
-**visual-diff** is an [Agent Skill](https://github.com/vercel-labs/agent-skills) for AI coding assistants. It captures every page in a list from two URLs — a **local** build and a **live**/staging build — diffs each pair with the native **odiff** engine, and writes a compact pass/fail table. Your agent reads the table and only opens a highlighted diff image for the pages that actually changed. No more burning context on full-page screenshots to prove two sites match.
+**visual-diff** is an [Agent Skill](https://github.com/vercel-labs/agent-skills) for AI coding assistants. It captures every page in a list from two URLs - a **local** build and a **live**/staging build - diffs each pair with the native **odiff** engine, and writes a compact pass/fail table. Your agent reads the table and only opens a highlighted diff image for the pages that actually changed. No more burning context on full-page screenshots to prove two sites match.
 
 Use it to **verify a migration or port, check visual parity after a refactor, QA a redesign before shipping, or run pixel-accurate visual regression testing** straight from your agent.
 
-> Works in **Claude Code**, **Claude Desktop**, **OpenAI Codex**, **Google Antigravity**, **Cursor**, and **opencode** — plus any agent that can read a Markdown skill and run Node.
+> Works in **Claude Code**, **Claude Desktop**, **OpenAI Codex**, **Google Antigravity**, **Cursor**, and **opencode** - plus any agent that can read a Markdown skill and run Node.
 
 ---
 
@@ -44,7 +44,7 @@ The fastest way to install visual-diff is to **let your AI agent do it.** Paste 
 If you are an agent, read https://github.com/wpfyorg/visual-diff-skill/blob/master/LLM-INSTALL.md and install this stack.
 ```
 
-The agent reads [`LLM-INSTALL.md`](LLM-INSTALL.md) — a step-by-step guide written for the agent — then places the skill in the right folder for your tool, installs the dependencies, and verifies it works. If it gets stuck, point it at [`skills/visual-diff/SKILL.md`](skills/visual-diff/SKILL.md), which is self-describing.
+The agent reads [`LLM-INSTALL.md`](LLM-INSTALL.md) - a step-by-step guide written for the agent - then places the skill in the right folder for your tool, installs the dependencies, and verifies it works. If it gets stuck, point it at [`skills/visual-diff/SKILL.md`](skills/visual-diff/SKILL.md), which is self-describing.
 
 ### Or install with one command (Agent Skills CLI)
 
@@ -80,7 +80,7 @@ Then copy `config.example.json` into your project as `visual-diff.config.json` a
 | **opencode** | `.opencode/command/visual-diff.md` or `~/.config/opencode/` | `/visual-diff` |
 | **Any Markdown-skill agent** | wherever it reads skills; just run the Node script | run the script |
 
-The skill is **just a folder of Markdown + Node** — no proprietary format. If your agent can read a `SKILL.md` and shell out to `node`, it can run visual-diff.
+The skill is **just a folder of Markdown + Node** - no proprietary format. If your agent can read a `SKILL.md` and shell out to `node`, it can run visual-diff.
 
 ---
 
@@ -88,11 +88,11 @@ The skill is **just a folder of Markdown + Node** — no proprietary format. If 
 
 We were porting a hand-authored static site into a WordPress/Bricks Builder build, page by page. Every time we changed a section we needed to answer one question: *does the live build still match the source?*
 
-The naive way an AI agent does this is brutal on tokens — it screenshots both sites full-page and reads two giant PNGs **per page** into context, then eyeballs the difference. Fourteen pages × two renderings × desktop + mobile is a context bloodbath, and "looks about right" is not a real gate.
+The naive way an AI agent does this is brutal on tokens - it screenshots both sites full-page and reads two giant PNGs **per page** into context, then eyeballs the difference. Fourteen pages × two renderings × desktop + mobile is a context bloodbath, and "looks about right" is not a real gate.
 
 So we flipped it. Let a **deterministic image differ** do the matching and emit a number. The agent reads a one-line-per-page table, sees `✅ pass` / `❌ fail`, and opens an actual image **only** for the handful of pages that regressed. Same verification, a fraction of the tokens, and a hard numeric acceptance gate (default `< 0.1%` pixel difference) instead of vibes.
 
-It turned out to be useful far beyond our migration — any time you have "the same pages rendered two ways" (refactor vs. main, staging vs. prod, framework A vs. framework B, before vs. after a dependency bump), this is the skill.
+It turned out to be useful far beyond our migration - any time you have "the same pages rendered two ways" (refactor vs. main, staging vs. prod, framework A vs. framework B, before vs. after a dependency bump), this is the skill.
 
 ---
 
@@ -103,20 +103,20 @@ Tell your agent how close the two builds must match and let it loop. "Consistenc
 
 | You want… | Threshold | Paste this to your agent |
 |---|---:|---|
-| **90% consistency** *(rough parity — early porting)* | `10` | `Run /visual-diff with --threshold 10. Fix every ❌ fail in my source, then re-run until all pages pass. Read only report.md; open a diff image only for failing rows.` |
-| **95% consistency** *(close — pre-review)* | `5` | `Run /visual-diff with --threshold 5. Iterate: for each ❌ fail, open its diff*.png, fix the source, re-run that page, repeat until every page passes at 95%.` |
-| **99% consistency** *(tight — pre-ship QA)* | `1` | `Get my live build to 99% visual parity with local. Run /visual-diff --threshold 1, fix each failing region (font, spacing, color, radius, icon size), and don't stop until all pages pass.` |
-| **99.9% — default** *(pixel-perfect)* | `0.1` | `Run /visual-diff and don't declare done until every page is under the 0.1% gate.` |
+| **90% consistency** *(rough parity - early porting)* | `10` | `Run /visual-diff with --threshold 10. Fix every ❌ fail in my source, then re-run until all pages pass. Read only report.md; open a diff image only for failing rows.` |
+| **95% consistency** *(close - pre-review)* | `5` | `Run /visual-diff with --threshold 5. Iterate: for each ❌ fail, open its diff*.png, fix the source, re-run that page, repeat until every page passes at 95%.` |
+| **99% consistency** *(tight - pre-ship QA)* | `1` | `Get my live build to 99% visual parity with local. Run /visual-diff --threshold 1, fix each failing region (font, spacing, color, radius, icon size), and don't stop until all pages pass.` |
+| **99.9% - default** *(pixel-perfect)* | `0.1` | `Run /visual-diff and don't declare done until every page is under the 0.1% gate.` |
 
 **How the agent hits the target.** The skill turns "make it consistent" into a closed loop
 the agent can run unattended:
 
-1. **Set the gate** — your target becomes `--threshold (100 − target)`, so 95% → `--threshold 5`.
-2. **Measure** — the runner diffs every page and writes `report.md` with a real number per page.
-3. **Triage cheaply** — the agent reads only the table and opens a `diff*.png` **only** for `❌ fail` rows (changed pixels are magenta), so it sees exactly *where* a page drifts.
-4. **Fix the source** — it edits your code/build for each failing region. The usual culprits are named for it: font fallback, letter-spacing, line-height, an off-by-a-hex brand color, border-radius, icon size, section padding.
-5. **Re-run the failing page** — `--page <slug>` re-checks just that one, fast.
-6. **Loop until green** — repeat 3–5 until every page is under the gate. Exit code `0` is the agent's stop signal; `2` means keep going.
+1. **Set the gate** - your target becomes `--threshold (100 − target)`, so 95% → `--threshold 5`.
+2. **Measure** - the runner diffs every page and writes `report.md` with a real number per page.
+3. **Triage cheaply** - the agent reads only the table and opens a `diff*.png` **only** for `❌ fail` rows (changed pixels are magenta), so it sees exactly *where* a page drifts.
+4. **Fix the source** - it edits your code/build for each failing region. The usual culprits are named for it: font fallback, letter-spacing, line-height, an off-by-a-hex brand color, border-radius, icon size, section padding.
+5. **Re-run the failing page** - `--page <slug>` re-checks just that one, fast.
+6. **Loop until green** - repeat 3–5 until every page is under the gate. Exit code `0` is the agent's stop signal; `2` means keep going.
 
 The numeric gate is what makes this work without you in the loop: the agent has an objective
 "am I done yet?" instead of guessing from screenshots.
@@ -154,16 +154,16 @@ The numeric gate is what makes this work without you in the loop: the agent has 
    +-------------------------------------------------------+
 ```
 
-1. **Capture** — For each page, Playwright loads the same `path` from both bases at a fixed viewport (desktop 1280×800; add mobile 390×844 with `--mobile`). It emulates `prefers-reduced-motion` to freeze animations, waits for web fonts so text metrics are identical, and (with `--full`) scrolls the page to trigger `IntersectionObserver` reveal animations before shooting.
-2. **Diff** — [odiff](https://github.com/dmtrKovalenko/odiff) compares the two PNGs natively (much faster than pixelmatch on full pages). If the two images differ in size (e.g. the live page is taller), both are padded onto a shared canvas so a height difference correctly *raises* the diff % instead of erroring out. Changed pixels are painted magenta in `diff.png`.
-3. **Gate & report** — Each page passes when its diff is below the threshold (default **0.1%**). The runner writes `report.md` (a small table), `report.json` (machine-readable), and the per-page PNGs. Exit code is `0` if everything passes, `2` if anything fails — so it drops straight into CI.
-4. **The token-saving discipline** — Your agent reads **only `report.md`**, then opens a `diff*.png` **only for `❌ fail` rows**. Passing pages are never loaded into context.
+1. **Capture** - For each page, Playwright loads the same `path` from both bases at a fixed viewport (desktop 1280×800; add mobile 390×844 with `--mobile`). It emulates `prefers-reduced-motion` to freeze animations, waits for web fonts so text metrics are identical, and (with `--full`) scrolls the page to trigger `IntersectionObserver` reveal animations before shooting.
+2. **Diff** - [odiff](https://github.com/dmtrKovalenko/odiff) compares the two PNGs natively (much faster than pixelmatch on full pages). If the two images differ in size (e.g. the live page is taller), both are padded onto a shared canvas so a height difference correctly *raises* the diff % instead of erroring out. Changed pixels are painted magenta in `diff.png`.
+3. **Gate & report** - Each page passes when its diff is below the threshold (default **0.1%**). The runner writes `report.md` (a small table), `report.json` (machine-readable), and the per-page PNGs. Exit code is `0` if everything passes, `2` if anything fails - so it drops straight into CI.
+4. **The token-saving discipline** - Your agent reads **only `report.md`**, then opens a `diff*.png` **only for `❌ fail` rows**. Passing pages are never loaded into context.
 
 ---
 
 ## Usage
 
-1. **Start your local server** at whatever `localBase` points to — e.g. `python3 -m http.server 8765 --directory web`, `npm run dev`, etc.
+1. **Start your local server** at whatever `localBase` points to - e.g. `python3 -m http.server 8765 --directory web`, `npm run dev`, etc.
 2. **Trigger the skill** in your agent (`/visual-diff`) or run the script directly:
 
 ```bash
@@ -223,14 +223,14 @@ Create `visual-diff.config.json` in your project root (copy `config.example.json
 }
 ```
 
-`path` is shared between both bases. You can keep pages in a separate `visual-diff.pages.json` (`{ "pages": [...] }`) instead — the runner auto-discovers it.
+`path` is shared between both bases. You can keep pages in a separate `visual-diff.pages.json` (`{ "pages": [...] }`) instead - the runner auto-discovers it.
 
 **Config resolution order** (highest priority first):
 
-1. **CLI flag** — `--local-base`, `--live-base`, `--page`, `--pages`, `--threshold`, `--config`
-2. **Env var** — `VDIFF_LOCAL_BASE`, `VDIFF_LIVE_BASE`, `VDIFF_PAGES`, `VDIFF_THRESHOLD`
+1. **CLI flag** - `--local-base`, `--live-base`, `--page`, `--pages`, `--threshold`, `--config`
+2. **Env var** - `VDIFF_LOCAL_BASE`, `VDIFF_LIVE_BASE`, `VDIFF_PAGES`, `VDIFF_THRESHOLD`
 3. **`visual-diff.config.json`** in the current working directory
-4. **Built-in defaults** — `localhost:8765` vs `localhost:8766`, single `/` page, `0.1%` gate
+4. **Built-in defaults** - `localhost:8765` vs `localhost:8766`, single `/` page, `0.1%` gate
 
 ---
 
@@ -249,20 +249,20 @@ Install all three inside the skill folder: `npm install && npx playwright instal
 
 ## FAQ
 
-**Is this only for static sites?** No. Any two URLs that render the same `path` work — staging vs. prod, a refactor branch served on another port vs. main, framework A vs. framework B, before/after a redesign.
+**Is this only for static sites?** No. Any two URLs that render the same `path` work - staging vs. prod, a refactor branch served on another port vs. main, framework A vs. framework B, before/after a redesign.
 
-**A page fails but looks identical to me.** Live captures can be noisy — cookie banners, late-loading fonts, lazy content, A/B variants. Re-run first. If it persists, raise the per-pixel `threshold` or add `ignoreRegions` in [`scripts/lib/odiff-compare.mjs`](skills/visual-diff/scripts/lib/odiff-compare.mjs). Common real causes: font fallback, letter-spacing, line-height, an off-by-a-hex brand color, border-radius, icon size, or section padding.
+**A page fails but looks identical to me.** Live captures can be noisy - cookie banners, late-loading fonts, lazy content, A/B variants. Re-run first. If it persists, raise the per-pixel `threshold` or add `ignoreRegions` in [`scripts/lib/odiff-compare.mjs`](skills/visual-diff/scripts/lib/odiff-compare.mjs). Common real causes: font fallback, letter-spacing, line-height, an off-by-a-hex brand color, border-radius, icon size, or section padding.
 
 **Why odiff instead of pixelmatch?** odiff is a native binary and dramatically faster on full-page screenshots, and it returns a clean diff percentage the runner can gate on without decoding the image.
 
-**Does it work in CI?** Yes — it's a plain Node script with a meaningful exit code (`2` on any failure) and a `report.json`. Start your server, run it, fail the job on exit `2`.
+**Does it work in CI?** Yes - it's a plain Node script with a meaningful exit code (`2` on any failure) and a `report.json`. Start your server, run it, fail the job on exit `2`.
 
-**Can the agent install it itself?** That's the intended path — see [Install (just ask your agent)](#install-just-ask-your-agent).
+**Can the agent install it itself?** That's the intended path - see [Install (just ask your agent)](#install-just-ask-your-agent).
 
 ---
 
 ## License
 
-[MIT](LICENSE) © wpfyorg. No project-specific URLs or paths remain in this build — drop it into any repo.
+[MIT](LICENSE) © wpfyorg. No project-specific URLs or paths remain in this build - drop it into any repo.
 
 <sub>Keywords: visual regression testing · screenshot diff · pixel diff · odiff · Playwright · AI agent skill · Claude Code skill · Codex skill · Cursor · opencode · Antigravity · visual QA · CI visual testing · migration parity check.</sub>
