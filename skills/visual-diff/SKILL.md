@@ -68,9 +68,12 @@ you only look at images when something is actually off.
 3. **Read ONLY `tmp/visual-diff/<run>/report.md`.** It is a small table:
    `Page | Viewport | Diff % | Status | Diff image`.
 
-4. **For rows marked `❌ fail` (and only those), open the listed `diff*.png`** with the
-   Read tool to see the changed regions (highlighted in magenta `#ff00ff`). Do **not**
-   read `local.png` / `live.png` unless the diff image alone is ambiguous. Skip
+4. **For every row marked `❌ fail` you MUST open its `diff*.png`** with the Read tool to
+   see the changed regions (highlighted in magenta `#ff00ff`). This is required, not
+   optional: the diff % tells you *that* a row failed, never *what* changed. Do not
+   propose a fix from the number or section name alone. The report ends with a
+   "Required next step" checklist of the exact images to read. Do **not** read
+   `local.png` / `live.png` unless the diff image alone is ambiguous, and skip
    `✅ pass` rows entirely - they are within the gate.
 
 5. **Report** the pass/fail table back to the user. For each failure, name the likely

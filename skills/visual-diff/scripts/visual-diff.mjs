@@ -183,8 +183,13 @@ const failed = results.filter((r) => r.status !== 'pass');
 console.log(`\nReport: ${relize(join(runDir, 'report.md'), ROOT)}`);
 console.log(`${results.length - failed.length}/${results.length} passed.`);
 if (failed.length) {
-  console.log(`Open the diff image for these rows only:`);
-  for (const r of failed) console.log(`  - ${rowTag(r)} [${r.viewport}]${r.diffImage ? ` → ${r.diffImage}` : ''}`);
+  console.log(`\nREQUIRED NEXT STEP - open each diff image below with the Read tool and`);
+  console.log(`look at the magenta (#ff00ff) regions. The diff % alone does NOT tell you`);
+  console.log(`what changed; do not propose a fix without viewing the image first.`);
+  for (const r of failed) {
+    const note = r.diffImage ? '' : ` (no diff image - ${r.message})`;
+    console.log(`  - ${rowTag(r)} [${r.viewport}]${r.diffImage ? ` → ${r.diffImage}` : note}`);
+  }
   process.exit(2);
 }
 
@@ -293,7 +298,8 @@ function buildMarkdown(rows) {
     `- Capture: ${hasSections ? 'section-by-section' : fullPage ? 'full-page' : 'viewport'} · Gate: < ${gatePct}% diff`,
     `- Result: **${passed}/${rows.length} passed**`,
     ``,
-    `> Read this table first. Open a diff image ONLY for rows marked \`fail\`.`,
+    `> Read this table first. Diff % tells you *whether* a row failed, not *what* changed -`,
+    `> for that you MUST open the diff image (see the required step below).`,
     ``,
     hasSections
       ? `| Page | Section | Viewport | Diff % | Status | Diff image |`
@@ -310,6 +316,32 @@ function buildMarkdown(rows) {
       ? `| ${r.slug} | ${r.section || '-'} | ${r.viewport} | ${pct} | ${badge} | ${img} |`
       : `| ${r.slug} | ${r.viewport} | ${pct} | ${badge} | ${img} |`);
   }
+
+  // Explicit, imperative next-step block so the agent actually inspects the
+  // diffs instead of reporting percentages. Listed only for failing rows.
+  const failed = rows.filter((r) => r.status !== 'pass');
+  if (failed.length) {
+    lines.push(
+      ``,
+      `## ⛔ Required next step - inspect every diff below`,
+      ``,
+      `${failed.length} row(s) failed. **Before proposing any fix, open each diff image`,
+      `with the Read tool** and look at the magenta (\`#ff00ff\`) regions - that is the only`,
+      `way to know *what* differs. Do **not** infer the cause from the diff % or section`,
+      `name. Work the list top to bottom; for each, name the changed element and the likely`,
+      `cause (font/letter-spacing, line-height, color hex, radius, icon size, padding, or a`,
+      `size mismatch = a section that grew/shrank).`,
+      ``,
+    );
+    for (const r of failed) {
+      const where = `${rowTag(r)} [${r.viewport}]`;
+      const pct = r.diffPercentage == null ? '' : ` - ${r.diffPercentage.toFixed(2)}%`;
+      lines.push(r.diffImage
+        ? `- [ ] \`${r.diffImage}\` - ${where}${pct}`
+        : `- [ ] ${where}${pct} - no diff image (${r.message})`);
+    }
+  }
+
   lines.push('');
   return lines.join('\n');
 }
