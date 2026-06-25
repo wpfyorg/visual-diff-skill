@@ -19,12 +19,17 @@
  *   node visual-diff.mjs                 # all pages, desktop (1280×800)
  *   node visual-diff.mjs --mobile        # desktop + mobile (390×844)
  *   node visual-diff.mjs --page <slug>   # a single page from the manifest
+ *   node visual-diff.mjs --sections      # diff each <section> separately (localize a fail)
  *   node visual-diff.mjs --full          # full-page captures (padded diff)
  *   node visual-diff.mjs --local-base http://127.0.0.1:8765
  *   node visual-diff.mjs --live-base  https://staging.example.com
  *   node visual-diff.mjs --config path/to/visual-diff.config.json
  *
- * Exit codes: 0 = every page passes (< threshold), 2 = one or more fail/error.
+ * --sections auto-detects each page's <section> elements on the LOCAL page and
+ * diffs each by its semantic class (hero, pricing, faq, …). A page in the manifest
+ * may override detection with a `sections` array (selectors or {selector,label}).
+ *
+ * Exit codes: 0 = every row passes (< threshold), 2 = one or more fail/error.
  * Output: <cwd>/tmp/visual-diff/<run-timestamp>/ (report.md, report.json, PNGs).
  */
 
@@ -63,6 +68,7 @@ const LIVE_BASE  = String(pick('--live-base',  'VDIFF_LIVE_BASE',  'liveBase',  
 const gatePct    = Number(pick('--threshold',  'VDIFF_THRESHOLD',  'thresholdPct', THRESHOLD_PCT));
 const fullPage   = flag('--full');
 const onlyPage   = opt('--page', null);
+const sectionsMode = flag('--sections');
 
 const VIEWPORTS = [{ name: 'desktop', width: 1280, height: 800 }];
 if (flag('--mobile')) VIEWPORTS.push({ name: 'mobile', width: 390, height: 844 });
@@ -123,37 +129,42 @@ for (const page of pages) {
 
   for (const vp of VIEWPORTS) {
     const suffix = vp.name === 'desktop' ? '' : `-${vp.name}`;
-    const localPath = join(pageDir, `local${suffix}.png`);
-    const livePath = join(pageDir, `live${suffix}.png`);
-    const diffPath = join(pageDir, `diff${suffix}.png`);
-    const row = { slug: page.slug, viewport: vp.name, path: page.path };
 
-    try {
-      await captureScreenshot({
-        url: LOCAL_BASE + page.path, outPath: localPath,
-        full: fullPage, width: vp.width, height: vp.height, browser,
-      });
-      await captureScreenshot({
-        url: LIVE_BASE + page.path, outPath: livePath,
-        full: fullPage, width: vp.width, height: vp.height, browser,
-        timeout: 45_000, // remote/live side is usually slower than localhost
-      });
-
-      const cmp = await odiffCompare(localPath, livePath, diffPath, { gatePct });
-      row.diffPercentage = cmp.diffPercentage;
-      row.diffCount = cmp.diffCount;
-      row.status = cmp.pass ? 'pass' : 'fail';
-      row.message = cmp.message;
-      row.diffImage = cmp.pass ? null : relize(cmp.diffPath, ROOT);
-      console.log(`  ${row.status === 'pass' ? '✓' : '✗'} ${page.slug} [${vp.name}] - ${cmp.message}`);
-    } catch (err) {
-      row.status = 'error';
-      row.message = err.message;
-      row.diffPercentage = null;
-      console.log(`  ! ${page.slug} [${vp.name}] - ERROR: ${err.message}`);
+    if (!sectionsMode) {
+      const row = await diffPair({ page, vp, suffix, pageDir, section: null });
+      results.push(row);
+      logRow(row);
+      continue;
     }
 
-    results.push(row);
+    // ── section-by-section ──────────────────────────────────────────────────
+    let sections;
+    try {
+      sections = await resolveSections(page, vp);
+    } catch (err) {
+      const row = { slug: page.slug, section: '(detect)', viewport: vp.name, path: page.path,
+        status: 'error', message: `section detect failed: ${err.message}`, diffPercentage: null };
+      results.push(row);
+      logRow(row);
+      continue;
+    }
+    if (!sections.length) {
+      const row = { slug: page.slug, section: '(none)', viewport: vp.name, path: page.path,
+        status: 'error', message: 'no <section> with a semantic class found on local', diffPercentage: null };
+      results.push(row);
+      logRow(row);
+      continue;
+    }
+    for (const section of sections) {
+      const row = await diffPair({ page, vp, suffix, pageDir, section });
+      results.push(row);
+      logRow(row);
+    }
+    // Whole-page guard: catches sections that exist on live but not on local.
+    // Per-section rows only confirm matched sections pass; this ensures structural parity.
+    const guardRow = await diffPair({ page, vp, suffix, pageDir, section: { selector: null, label: '(whole-page)' } });
+    results.push(guardRow);
+    logRow(guardRow);
   }
 }
 
@@ -172,9 +183,90 @@ const failed = results.filter((r) => r.status !== 'pass');
 console.log(`\nReport: ${relize(join(runDir, 'report.md'), ROOT)}`);
 console.log(`${results.length - failed.length}/${results.length} passed.`);
 if (failed.length) {
-  console.log(`Open the diff image for these rows only:`);
-  for (const r of failed) console.log(`  - ${r.slug} [${r.viewport}]${r.diffImage ? ` → ${r.diffImage}` : ''}`);
+  console.log(`\nREQUIRED NEXT STEP - open each diff image below with the Read tool and`);
+  console.log(`look at the magenta (#ff00ff) regions. The diff % alone does NOT tell you`);
+  console.log(`what changed; do not propose a fix without viewing the image first.`);
+  for (const r of failed) {
+    const note = r.diffImage ? '' : ` (no diff image - ${r.message})`;
+    console.log(`  - ${rowTag(r)} [${r.viewport}]${r.diffImage ? ` → ${r.diffImage}` : note}`);
+  }
   process.exit(2);
+}
+
+// ── capture/diff one pair (whole page, or one section when `section` is set) ──
+async function diffPair({ page, vp, suffix, pageDir, section }) {
+  const stem = section ? `${slugify(section.label)}${suffix}` : null;
+  const localPath = join(pageDir, section ? `${stem}-local.png` : `local${suffix}.png`);
+  const livePath = join(pageDir, section ? `${stem}-live.png` : `live${suffix}.png`);
+  const diffPath = join(pageDir, section ? `${stem}-diff.png` : `diff${suffix}.png`);
+  const row = { slug: page.slug, viewport: vp.name, path: page.path };
+  if (section) row.section = section.label;
+
+  try {
+    await captureScreenshot({
+      url: LOCAL_BASE + page.path, outPath: localPath,
+      full: fullPage, width: vp.width, height: vp.height, browser,
+      selector: section ? section.selector : null,
+    });
+    await captureScreenshot({
+      url: LIVE_BASE + page.path, outPath: livePath,
+      full: fullPage, width: vp.width, height: vp.height, browser,
+      timeout: 45_000, // remote/live side is usually slower than localhost
+      selector: section ? section.selector : null,
+    });
+
+    const cmp = await odiffCompare(localPath, livePath, diffPath, { gatePct });
+    row.diffPercentage = cmp.diffPercentage;
+    row.diffCount = cmp.diffCount;
+    row.status = cmp.pass ? 'pass' : 'fail';
+    row.message = cmp.message;
+    row.diffImage = cmp.pass ? null : relize(cmp.diffPath, ROOT);
+  } catch (err) {
+    row.status = 'error';
+    row.message = err.message;
+    row.diffPercentage = null;
+  }
+  return row;
+}
+
+/** Section list for a page: manifest `sections` override, else auto-detect on local. */
+async function resolveSections(page, vp) {
+  if (Array.isArray(page.sections) && page.sections.length) {
+    return page.sections.map((s) =>
+      typeof s === 'string' ? { selector: s, label: s.replace(/^[.#]/, '') } : s);
+  }
+  return detectSections(LOCAL_BASE + page.path, vp);
+}
+
+/** Open the local page and read each <section>'s first semantic class. */
+async function detectSections(url, vp) {
+  const p = await browser.newPage();
+  try {
+    await p.setViewportSize({ width: vp.width, height: vp.height });
+    const resp = await p.goto(url, { waitUntil: 'load', timeout: 30_000 });
+    if (resp && !resp.ok()) throw new Error(`HTTP ${resp.status()} for ${url}`);
+    const found = await p.evaluate(() => {
+      // Skip generic layout/utility tokens and Tailwind-style responsive prefixes (e.g. md:py-24).
+      const GENERIC = new Set(['section', 'container', 'wrapper', 'inner', 'content', 'row', 'col']);
+      const isUtility = (c) => GENERIC.has(c) || /^[a-z]{2,3}:/.test(c);
+      const list = [];
+      document.querySelectorAll('section').forEach((el) => {
+        // Skip sections hidden by CSS or feature toggles — screenshotting them would timeout.
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden') return;
+        const cls = [...el.classList].find((c) => !isUtility(c));
+        if (!cls) return;
+        // Qualify with `section` tag so we target the element itself, not any unrelated `.cls` node.
+        // CSS.escape handles class names with special chars (colons, slashes, etc.).
+        list.push({ selector: 'section.' + CSS.escape(cls), label: cls });
+      });
+      return list;
+    });
+    const seen = new Set(); // de-dup by selector, keep first occurrence
+    return found.filter((s) => (seen.has(s.selector) ? false : (seen.add(s.selector), true)));
+  } finally {
+    await p.close();
+  }
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────────
@@ -182,27 +274,74 @@ function relize(p, root) {
   return p && p.startsWith(root) ? p.slice(root.length + 1) : p;
 }
 
+function slugify(s) {
+  return String(s).replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
+}
+
+function rowTag(r) {
+  return r.section ? `${r.slug} › ${r.section}` : r.slug;
+}
+
+function logRow(r) {
+  const mark = r.status === 'pass' ? '✓' : r.status === 'fail' ? '✗' : '!';
+  console.log(`  ${mark} ${rowTag(r)} [${r.viewport}] - ${r.message}`);
+}
+
 function buildMarkdown(rows) {
   const passed = rows.filter((r) => r.status === 'pass').length;
+  const hasSections = rows.some((r) => r.section);
   const lines = [
     `# Visual diff report`,
     ``,
     `- Generated: ${new Date().toISOString()}`,
     `- Local: ${LOCAL_BASE} · Live: ${LIVE_BASE}`,
-    `- Capture: ${fullPage ? 'full-page' : 'viewport'} · Gate: < ${gatePct}% diff`,
+    `- Capture: ${hasSections ? 'section-by-section' : fullPage ? 'full-page' : 'viewport'} · Gate: < ${gatePct}% diff`,
     `- Result: **${passed}/${rows.length} passed**`,
     ``,
-    `> Read this table first. Open a diff image ONLY for rows marked \`fail\`.`,
+    `> Read this table first. Diff % tells you *whether* a row failed, not *what* changed -`,
+    `> for that you MUST open the diff image (see the required step below).`,
     ``,
-    `| Page | Viewport | Diff % | Status | Diff image |`,
-    `| --- | --- | ---: | --- | --- |`,
+    hasSections
+      ? `| Page | Section | Viewport | Diff % | Status | Diff image |`
+      : `| Page | Viewport | Diff % | Status | Diff image |`,
+    hasSections
+      ? `| --- | --- | --- | ---: | --- | --- |`
+      : `| --- | --- | ---: | --- | --- |`,
   ];
   for (const r of rows) {
     const pct = r.diffPercentage == null ? '-' : `${r.diffPercentage.toFixed(2)}%`;
     const badge = r.status === 'pass' ? '✅ pass' : r.status === 'fail' ? '❌ fail' : '⚠️ error';
     const img = r.status === 'pass' ? '-' : (r.diffImage ? `\`${r.diffImage}\`` : `(${r.message})`);
-    lines.push(`| ${r.slug} | ${r.viewport} | ${pct} | ${badge} | ${img} |`);
+    lines.push(hasSections
+      ? `| ${r.slug} | ${r.section || '-'} | ${r.viewport} | ${pct} | ${badge} | ${img} |`
+      : `| ${r.slug} | ${r.viewport} | ${pct} | ${badge} | ${img} |`);
   }
+
+  // Explicit, imperative next-step block so the agent actually inspects the
+  // diffs instead of reporting percentages. Listed only for failing rows.
+  const failed = rows.filter((r) => r.status !== 'pass');
+  if (failed.length) {
+    lines.push(
+      ``,
+      `## ⛔ Required next step - inspect every diff below`,
+      ``,
+      `${failed.length} row(s) failed. **Before proposing any fix, open each diff image`,
+      `with the Read tool** and look at the magenta (\`#ff00ff\`) regions - that is the only`,
+      `way to know *what* differs. Do **not** infer the cause from the diff % or section`,
+      `name. Work the list top to bottom; for each, name the changed element and the likely`,
+      `cause (font/letter-spacing, line-height, color hex, radius, icon size, padding, or a`,
+      `size mismatch = a section that grew/shrank).`,
+      ``,
+    );
+    for (const r of failed) {
+      const where = `${rowTag(r)} [${r.viewport}]`;
+      const pct = r.diffPercentage == null ? '' : ` - ${r.diffPercentage.toFixed(2)}%`;
+      lines.push(r.diffImage
+        ? `- [ ] \`${r.diffImage}\` - ${where}${pct}`
+        : `- [ ] ${where}${pct} - no diff image (${r.message})`);
+    }
+  }
+
   lines.push('');
   return lines.join('\n');
 }

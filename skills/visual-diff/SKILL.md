@@ -1,9 +1,9 @@
 ---
 name: visual-diff
-description: Compare two renderings of the same set of pages - a "local" base against a "live" base - using odiff, and report which pages match. Use to verify a port/migration, check parity after edits, or QA before shipping, instead of eyeballing full-page screenshots. Triggered by /visual-diff.
+description: Compare two renderings of the same set of pages - a "local" base against a "live" base - using odiff, and report which pages match. Use to verify a port/migration, check parity after edits, or QA before shipping, instead of eyeballing full-page screenshots. Drop to --sections to localize where a page differs. Triggered by /visual-diff.
 trigger: /visual-diff
 user-invocable: true
-argument-hint: "[page-slug] [--mobile] [--full]"
+argument-hint: "[page-slug] [--sections] [--mobile] [--full]"
 disable-model-invocation: true
 ---
 
@@ -56,10 +56,11 @@ you only look at images when something is actually off.
 2. **Run the comparison.** Pass `$ARGUMENTS` through:
    - no arg → all pages, desktop viewport
    - a slug (e.g. `pricing`) → `--page <slug>`
+   - `--sections` → diff each `<section>` of the page(s) separately (see below)
    - `--mobile` → also capture 390×844
    - `--full` → full-page captures (padded diff; height differences raise the %)
    ```bash
-   node path/to/skills/visual-diff/scripts/visual-diff.mjs [--page <slug>] [--mobile] [--full]
+   node path/to/skills/visual-diff/scripts/visual-diff.mjs [--page <slug>] [--sections] [--mobile] [--full]
    ```
    Bases can also be overridden ad-hoc: `--local-base <url> --live-base <url>`.
    The command prints the run directory, e.g. `tmp/visual-diff/<run>/`.
@@ -67,15 +68,44 @@ you only look at images when something is actually off.
 3. **Read ONLY `tmp/visual-diff/<run>/report.md`.** It is a small table:
    `Page | Viewport | Diff % | Status | Diff image`.
 
-4. **For rows marked `❌ fail` (and only those), open the listed `diff*.png`** with the
-   Read tool to see the changed regions (highlighted in magenta `#ff00ff`). Do **not**
-   read `local.png` / `live.png` unless the diff image alone is ambiguous. Skip
+4. **For every row marked `❌ fail` you MUST open its `diff*.png`** with the Read tool to
+   see the changed regions (highlighted in magenta `#ff00ff`). This is required, not
+   optional: the diff % tells you *that* a row failed, never *what* changed. Do not
+   propose a fix from the number or section name alone. The report ends with a
+   "Required next step" checklist of the exact images to read. Do **not** read
+   `local.png` / `live.png` unless the diff image alone is ambiguous, and skip
    `✅ pass` rows entirely - they are within the gate.
 
 5. **Report** the pass/fail table back to the user. For each failure, name the likely
    cause from the usual mismatch sources: font loading / fallback, letter-spacing,
    line-height, exact brand-color hex, border-radius, SVG/icon size, section padding,
    or a missing/resized section (large diff % with a "size mismatch" note).
+
+## Section by section (`--sections`)
+
+A full-page fail tells you a page differs but not *where*, and one tall section can
+drag the whole number. `--sections` localizes it: it auto-detects each `<section>` on
+the **local** page by its first semantic class (`hero`, `pricing`, `faq`, …), clips the
+**same selector** on both sides, and diffs each region independently.
+
+```bash
+node path/to/scripts/visual-diff.mjs --page <slug> --sections   # one page, all its sections
+node path/to/scripts/visual-diff.mjs --sections                 # every page, section by section
+```
+
+- The `report.md` gains a **Section** column; read it the same way and open a
+  `<section>-diff.png` only for `❌ fail` rows. Per-section PNGs are
+  `<section>-local.png` / `<section>-live.png` / `<section>-diff.png`.
+- If the live side is missing a section's class, that row reports `⚠️ error`
+  ("Selector not found") - a signal the ported section didn't get its semantic class.
+- **Override the auto-detected list** per page in your config/manifest by adding a
+  `sections` array (strings, or `{ "selector": ".cards .grid", "label": "grid" }` to
+  target a child):
+  ```json
+  { "slug": "pricing", "path": "/pricing/", "sections": [".hero", ".tiers", "#faq"] }
+  ```
+- Capture both sides at the **same viewport width** (`--mobile` / default) - a width
+  mismatch reflows the section and inflates the diff.
 
 ## Notes
 
