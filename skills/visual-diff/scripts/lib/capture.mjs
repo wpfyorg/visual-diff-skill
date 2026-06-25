@@ -32,6 +32,8 @@ export async function launchBrowser() {
  * @param {number} [o.width]   Viewport width (default 1280).
  * @param {number} [o.height]  Viewport height (default 800).
  * @param {number} [o.timeout] Navigation timeout ms (default 30000).
+ * @param {string} [o.selector] CSS selector to clip to (captures just that element,
+ *                              scrolled into view - used for section-by-section diffs).
  * @param {import('playwright').Browser} [o.browser] Reuse an existing browser.
  * @returns {Promise<{ width:number, height:number }>} viewport used.
  */
@@ -42,6 +44,7 @@ export async function captureScreenshot({
   width = 1280,
   height = 800,
   timeout = 30_000,
+  selector = null,
   browser = null,
 }) {
   const ownBrowser = !browser;
@@ -70,7 +73,7 @@ export async function captureScreenshot({
     await page.evaluate(() => document.fonts && document.fonts.ready).catch(() => {});
     await page.waitForTimeout(300);
 
-    if (full) {
+    if (full || selector) {
       // Scroll through the page so IntersectionObserver reveal triggers for every section.
       await page.evaluate(async () => {
         await new Promise((resolve) => {
@@ -87,7 +90,20 @@ export async function captureScreenshot({
       await page.waitForTimeout(300);
     }
 
-    await page.screenshot({ path: outPath, fullPage: full });
+    if (selector) {
+      // Section-by-section: clip to a single element. scrollIntoView re-triggers its
+      // reveal observer; the element-clip keeps both sides the same region/size.
+      const el = page.locator(selector).first();
+      if (!(await el.count())) {
+        await page.close();
+        throw new Error(`Selector not found: ${selector} on ${url}`);
+      }
+      await el.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(150);
+      await el.screenshot({ path: outPath });
+    } else {
+      await page.screenshot({ path: outPath, fullPage: full });
+    }
     await page.close();
     return { width, height };
   } finally {
