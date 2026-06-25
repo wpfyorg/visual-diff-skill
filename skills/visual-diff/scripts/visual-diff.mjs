@@ -160,6 +160,11 @@ for (const page of pages) {
       results.push(row);
       logRow(row);
     }
+    // Whole-page guard: catches sections that exist on live but not on local.
+    // Per-section rows only confirm matched sections pass; this ensures structural parity.
+    const guardRow = await diffPair({ page, vp, suffix, pageDir, section: { selector: null, label: '(whole-page)' } });
+    results.push(guardRow);
+    logRow(guardRow);
   }
 }
 
@@ -236,11 +241,19 @@ async function detectSections(url, vp) {
     const resp = await p.goto(url, { waitUntil: 'load', timeout: 30_000 });
     if (resp && !resp.ok()) throw new Error(`HTTP ${resp.status()} for ${url}`);
     const found = await p.evaluate(() => {
-      const GENERIC = new Set(['section']); // utility token, not a semantic name
+      // Skip generic layout/utility tokens and Tailwind-style responsive prefixes (e.g. md:py-24).
+      const GENERIC = new Set(['section', 'container', 'wrapper', 'inner', 'content', 'row', 'col']);
+      const isUtility = (c) => GENERIC.has(c) || /^[a-z]{2,3}:/.test(c);
       const list = [];
       document.querySelectorAll('section').forEach((el) => {
-        const cls = [...el.classList].filter((c) => !GENERIC.has(c));
-        if (cls.length) list.push({ selector: '.' + cls[0], label: cls[0] });
+        // Skip sections hidden by CSS or feature toggles — screenshotting them would timeout.
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden') return;
+        const cls = [...el.classList].find((c) => !isUtility(c));
+        if (!cls) return;
+        // Qualify with `section` tag so we target the element itself, not any unrelated `.cls` node.
+        // CSS.escape handles class names with special chars (colons, slashes, etc.).
+        list.push({ selector: 'section.' + CSS.escape(cls), label: cls });
       });
       return list;
     });
